@@ -21,7 +21,7 @@ export function createApp() {
   app.use('/api/verify', verifyRouter);
 
   app.get('/api', (_req, res) => {
-    res.json({ name: 'Cairn', version: '0.1.0', docs: 'https://github.com/' });
+    res.json({ name: 'Cairn', version: '0.1.0', verify: 'POST /api/verify', meta: 'GET /api/verify/meta', health: 'GET /api/verify/health' });
   });
 
   const dist = path.join(config.root, 'dist');
