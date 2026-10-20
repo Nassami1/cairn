@@ -20,7 +20,7 @@ export const config = {
   host: env.HOST ?? '127.0.0.1',
   port: Number(env.PORT) || 8787,
   contactEmail,
-  userAgent: `Cairn/0.1 (${contactEmail ? `mailto:${contactEmail}` : 'educational hackathon project'})`,
+  userAgent: `Cairn/0.1 (${contactEmail ? `mailto:${contactEmail}` : 'https://github.com/Nassami1/cairn'})`,
   llm: apiKey
     ? {
         apiKey,
