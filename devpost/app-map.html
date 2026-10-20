@@ -1,0 +1,445 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cairn — App Map</title>
+    <style>
+      :root {
+        --paper: #f4efe6;
+        --raised: #fbf7ef;
+        --ink: #17140f;
+        --soft: #3f3a31;
+        --muted: #6f6a61;
+        --faint: #8d867a;
+        --rule: #d7cdbb;
+        --oxblood: #a63a2b;
+        --moss: #2f5d4a;
+        --ochre: #a96b12;
+        --mono: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+        --serif: 'Iowan Old Style', 'Palatino Linotype', Georgia, serif;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        padding: 40px clamp(18px, 5vw, 64px) 60px;
+        background: var(--paper);
+        color: var(--ink);
+        font-family: var(--serif);
+        line-height: 1.55;
+        background-image: radial-gradient(900px 500px at 10% -10%, #fdfaf3, transparent 60%);
+      }
+      .wrap { max-width: 1180px; margin: 0 auto; }
+      .eyebrow {
+        font-family: var(--mono);
+        font-size: 9px;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: var(--muted);
+        display: flex;
+        align-items: center;
+        gap: 9px;
+      }
+      .eyebrow::before { content: ''; width: 7px; height: 7px; background: var(--oxblood); }
+      h1 {
+        margin: 14px 0 0;
+        font-size: clamp(2.2rem, 5vw, 3.4rem);
+        font-weight: 450;
+        letter-spacing: -0.03em;
+        line-height: 1;
+      }
+      .lede { max-width: 68ch; margin: 14px 0 0; color: var(--soft); font-size: 1.05rem; }
+      .meta {
+        margin-top: 16px;
+        font-family: var(--mono);
+        font-size: 8px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--faint);
+      }
+      .rule { height: 1px; background: var(--ink); margin: 28px 0 0; }
+
+      .map-wrap {
+        margin-top: 18px;
+        border: 1px solid var(--ink);
+        background: var(--raised);
+        padding: 14px 10px 8px;
+        overflow-x: auto;
+      }
+      svg.map { display: block; width: 100%; min-width: 940px; height: auto; }
+      .node { cursor: pointer; }
+      .node rect {
+        fill: var(--raised);
+        stroke: var(--ink);
+        stroke-width: 1;
+        transition: fill 0.18s ease;
+      }
+      .node:hover rect, .node.active rect { fill: #f0e3d0; }
+      .node text { fill: var(--ink); font-family: var(--serif); font-size: 13px; }
+      .node .file { fill: var(--faint); font-family: var(--mono); font-size: 7.5px; }
+      .node .num { fill: var(--oxblood); font-family: var(--mono); font-size: 8px; }
+      .arrow { stroke: var(--rule); stroke-width: 1.1; fill: none; }
+      .arrow-head { fill: var(--rule); }
+
+      .panels {
+        display: grid;
+        grid-template-columns: 1.05fr 0.95fr;
+        gap: 30px;
+        margin-top: 26px;
+        align-items: start;
+      }
+      .detail {
+        border: 1px solid var(--ink);
+        background: var(--raised);
+        padding: 22px 24px;
+        min-height: 290px;
+      }
+      .detail .kicker {
+        font-family: var(--mono);
+        font-size: 8px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      .detail h2 { margin: 8px 0 0; font-size: 1.7rem; font-weight: 460; letter-spacing: -0.02em; }
+      .detail p { margin: 10px 0 0; color: var(--soft); font-size: 0.98rem; }
+      .detail ul { margin: 12px 0 0; padding: 0; list-style: none; }
+      .detail li {
+        display: grid;
+        grid-template-columns: 92px 1fr;
+        gap: 10px;
+        padding: 7px 0;
+        border-top: 1px solid var(--rule);
+        font-size: 0.86rem;
+      }
+      .detail li span:first-child {
+        font-family: var(--mono);
+        font-size: 7.5px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--faint);
+        padding-top: 3px;
+      }
+      code, .mono { font-family: var(--mono); font-size: 0.86em; }
+      .change { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--rule); font-size: 0.9rem; }
+      .change strong { color: var(--oxblood); font-weight: 600; }
+
+      .trace h2, .where h2, .practice h2 {
+        margin: 0 0 10px;
+        font-family: var(--mono);
+        font-size: 9px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      ol.trace { margin: 0; padding: 0; list-style: none; counter-reset: step; }
+      ol.trace li {
+        counter-increment: step;
+        display: grid;
+        grid-template-columns: 26px 1fr;
+        gap: 10px;
+        padding: 9px 0;
+        border-top: 1px solid var(--rule);
+        font-size: 0.92rem;
+      }
+      ol.trace li::before {
+        content: counter(step, decimal-leading-zero);
+        font-family: var(--mono);
+        font-size: 8px;
+        color: var(--oxblood);
+        padding-top: 4px;
+      }
+      ol.trace a { color: var(--ink); text-decoration-color: var(--rule); }
+      ol.trace a:hover { color: var(--oxblood); }
+
+      .table { width: 100%; border-collapse: collapse; margin-top: 6px; }
+      .table th, .table td {
+        text-align: left;
+        padding: 8px 6px;
+        border-top: 1px solid var(--rule);
+        vertical-align: top;
+        font-size: 0.86rem;
+      }
+      .table th {
+        font-family: var(--mono);
+        font-size: 7.5px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--faint);
+        font-weight: 500;
+      }
+      .practice {
+        margin-top: 34px;
+        border-top: 1px solid var(--ink);
+        padding-top: 16px;
+      }
+      .practice-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-top: 12px; }
+      .practice-card { border-top: 1px solid var(--rule); padding-top: 10px; font-size: 0.9rem; color: var(--soft); }
+      .practice-card span { display: block; font-family: var(--mono); font-size: 8px; color: var(--oxblood); margin-bottom: 4px; }
+      .foot {
+        margin-top: 36px;
+        padding-top: 12px;
+        border-top: 1px solid var(--rule);
+        font-family: var(--mono);
+        font-size: 8px;
+        letter-spacing: 0.07em;
+        text-transform: uppercase;
+        color: var(--faint);
+        display: flex;
+        justify-content: space-between;
+        gap: 18px;
+        flex-wrap: wrap;
+      }
+      @media (max-width: 900px) {
+        .panels { grid-template-columns: 1fr; }
+        .practice-grid { grid-template-columns: 1fr; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <p class="eyebrow">Cairn · app map</p>
+      <h1>One click, six files, one verdict.</h1>
+      <p class="lede">
+        Follow a claim from the composer to the ledger. Click any node in the pipeline to see the file that owns it,
+        the function that does the work, and the smallest change that would move the result.
+      </p>
+      <p class="meta">Generated from the finished code · no framework required to read it · open the app at localhost:8787</p>
+      <div class="rule"></div>
+
+      <div class="map-wrap">
+        <svg class="map" viewBox="0 0 1040 190" role="img" aria-label="Cairn verification pipeline">
+          <defs>
+            <marker id="head" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path class="arrow-head" d="M 0 0 L 10 5 L 0 10 z"></path>
+            </marker>
+          </defs>
+          <g class="node" data-key="desk">
+            <rect x="8" y="52" width="122" height="64" rx="2"></rect>
+            <text x="18" y="74" class="num">01</text>
+            <text x="18" y="92">The claim</text>
+            <text x="18" y="105" class="file">Desk.tsx · App.tsx</text>
+          </g>
+          <line class="arrow" x1="132" y1="84" x2="160" y2="84" marker-end="url(#head)"></line>
+          <g class="node" data-key="analyze">
+            <rect x="164" y="52" width="126" height="64" rx="2"></rect>
+            <text x="174" y="74" class="num">02</text>
+            <text x="174" y="92">Understand</text>
+            <text x="174" y="105" class="file">analyze.js · text.js</text>
+          </g>
+          <line class="arrow" x1="292" y1="84" x2="320" y2="84" marker-end="url(#head)"></line>
+          <g class="node" data-key="retrieve">
+            <rect x="324" y="52" width="126" height="64" rx="2"></rect>
+            <text x="334" y="74" class="num">03</text>
+            <text x="334" y="92">Retrieve</text>
+            <text x="334" y="105" class="file">retrieve.js · providers</text>
+          </g>
+          <line class="arrow" x1="452" y1="84" x2="480" y2="84" marker-end="url(#head)"></line>
+          <g class="node" data-key="examine">
+            <rect x="484" y="52" width="132" height="64" rx="2"></rect>
+            <text x="494" y="74" class="num">04</text>
+            <text x="494" y="92">Read &amp; examine</text>
+            <text x="494" y="105" class="file">extract.js · examine.js</text>
+          </g>
+          <line class="arrow" x1="618" y1="84" x2="646" y2="84" marker-end="url(#head)"></line>
+          <g class="node" data-key="weigh">
+            <rect x="650" y="52" width="114" height="64" rx="2"></rect>
+            <text x="660" y="74" class="num">05</text>
+            <text x="660" y="92">Weigh</text>
+            <text x="660" y="105" class="file">weigh.js</text>
+          </g>
+          <line class="arrow" x1="766" y1="84" x2="794" y2="84" marker-end="url(#head)"></line>
+          <g class="node" data-key="compose">
+            <rect x="798" y="52" width="112" height="64" rx="2"></rect>
+            <text x="808" y="74" class="num">06</text>
+            <text x="808" y="92">Compose</text>
+            <text x="808" y="105" class="file">compose.js · llm.js</text>
+          </g>
+          <line class="arrow" x1="912" y1="84" x2="940" y2="84" marker-end="url(#head)"></line>
+          <g class="node" data-key="dossier">
+            <rect x="944" y="52" width="86" height="64" rx="2"></rect>
+            <text x="954" y="74" class="num">07</text>
+            <text x="954" y="92">Dossier</text>
+            <text x="954" y="105" class="file">Verdict · Ledger</text>
+          </g>
+          <text x="8" y="36" class="file" style="font-family: var(--mono); font-size: 8px; fill: var(--faint)">
+            POST /api/verify → verifyClaim() → Server-Sent Events → result
+          </text>
+        </svg>
+      </div>
+
+      <div class="panels">
+        <section class="detail" id="detail" aria-live="polite">
+          <p class="kicker">Selected node</p>
+          <h2 id="detail-title">The claim</h2>
+          <p id="detail-body"></p>
+          <ul id="detail-files"></ul>
+          <p class="change" id="detail-change"></p>
+        </section>
+
+        <section class="trace">
+          <h2>Follow one click</h2>
+          <ol>
+            <li><span>An example chip calls <code>handleExample</code> in <code>src/App.tsx</code>, which sets the claim and calls <code>run</code>.</span></li>
+            <li><span><code>run</code> opens a stream via <code>streamVerification</code> in <code>src/lib/api.ts</code> — a POST, because EventSource cannot send a body.</span></li>
+            <li><span><code>POST /api/verify</code> reaches <code>handleStream</code> in <code>server/routes/verify.js</code>, which applies the rate limit and cache.</span></li>
+            <li><span><code>verifyClaim</code> in <code>server/engine/verify.js</code> owns the five stages and emits them as SSE events.</span></li>
+            <li><span>The engine calls <code>retrieveCandidates</code>, <code>examineSource</code>, <code>weighEvidence</code> and <code>composeVerdict</code> in that order.</span></li>
+            <li><span><code>App.applyResult</code> receives the <code>result</code> event and renders <code>Dossier → VerdictCard + Ledger</code>.</span></li>
+          </ol>
+        </section>
+      </div>
+
+      <div class="panels" style="margin-top: 30px">
+        <section class="where">
+          <h2>Where to change what</h2>
+          <table class="table">
+            <thead>
+              <tr><th>Behaviour</th><th>File</th><th>Look for</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Verdict threshold</td><td><code>server/engine/weigh.js</code></td><td><code>balance &gt;= 0.3</code></td></tr>
+              <tr><td>Confidence weights</td><td><code>server/engine/weigh.js</code></td><td><code>WEIGHTS</code></td></tr>
+              <tr><td>Stance cues</td><td><code>server/engine/examine.js</code></td><td><code>REFUTE_PATTERNS</code></td></tr>
+              <tr><td>Source mix</td><td><code>server/engine/retrieve.js</code></td><td><code>providers</code></td></tr>
+              <tr><td>Palette and type</td><td><code>src/styles/tokens.css</code></td><td><code>:root</code></td></tr>
+              <tr><td>Receipt text</td><td><code>src/lib/copy.ts</code></td><td><code>buildReceipt</code></td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="practice">
+          <h2>Project-grounded practice</h2>
+          <div class="practice-grid">
+            <div class="practice-card">
+              <span>01 · trace a number</span>
+              Pick the score on screen, open <code>weigh.js</code>, and find the four factor numbers that produced it. Say the formula out loud in one sentence.
+            </div>
+            <div class="practice-card">
+              <span>02 · move a weight</span>
+              Change <code>WEIGHTS.agreement</code> from 0.32 to 0.45 and <code>independence</code> from 0.24 to 0.11 (keep the sum at 1). Rebuild, rerun the Great Wall claim, and note which way the score moves. Revert.
+            </div>
+            <div class="practice-card">
+              <span>03 · add a cue</span>
+              Add a refutation phrase you have actually seen in a fact-check (“baseless”, “no credible evidence”) to <code>REFUTE_PATTERNS</code>, run <code>npm test</code>, and decide whether it changed a real claim.
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <div class="foot">
+        <span>Cairn · MIT · Build With AI: Basics 2026</span>
+        <span>docs: README.md · devpost/scope.md · spec.md</span>
+      </div>
+    </div>
+
+    <script>
+      const DETAILS = {
+        desk: {
+          title: 'The claim',
+          body: 'The composer is a controlled textarea. Client validation rejects questions, links and anything under eight characters before a request is made. Pressing Enter submits; Shift+Enter adds a line.',
+          files: [
+            ['Component', 'src/components/Desk.tsx'],
+            ['State + run', 'src/App.tsx'],
+            ['Validation', 'server/engine/analyze.js'],
+          ],
+          change: 'Change the example chips or the 8–400 character bounds in <code>Desk.tsx</code> and <code>analyze.js</code>.',
+        },
+        analyze: {
+          title: 'Understand the claim',
+          body: 'Strips stopwords, extracts capitalised names, separates the predicate from the subject, detects negation, and collects anchors — numbers, percentages and superlatives that a source must mention to be on topic.',
+          files: [
+            ['Validation', 'server/engine/analyze.js · validateClaim'],
+            ['Text analysis', 'server/lib/text.js · analyzeClaim'],
+            ['Concepts', 'server/lib/text.js · conceptOf'],
+          ],
+          change: 'Add a synonym group in <code>text.js</code> when a claim uses vocabulary that a source spells differently.',
+        },
+        retrieve: {
+          title: 'Retrieve independent sources',
+          body: 'Queries Wikipedia, Bing News and OpenAlex in parallel under a shared budget, then dedupes, filters off-topic pages, and interleaves families so one provider cannot dominate.',
+          files: [
+            ['Orchestration', 'server/engine/retrieve.js'],
+            ['Wikipedia', 'server/providers/wikipedia.js'],
+            ['News + research', 'server/providers/news.js · openalex.js'],
+            ['Safe HTTP', 'server/lib/http.js'],
+          ],
+          change: 'Add a provider by returning the same candidate shape and registering it in <code>retrieve.js</code>.',
+        },
+        examine: {
+          title: 'Read and examine',
+          body: 'Fetches each page, strips navigation and reference apparatus, splits the article into sections and passages, and scores every passage against the claim. A passage needs two distinct predicate concepts and any numeric anchor before it can take a side.',
+          files: [
+            ['HTML reader', 'server/engine/extract.js'],
+            ['Passages + stance', 'server/engine/examine.js · examineSource'],
+            ['Sentence reading', 'server/engine/examine.js · classifyPassage'],
+          ],
+          change: 'Stance vocabulary lives in <code>REFUTE_PATTERNS</code> and <code>SUPPORT_PATTERNS</code> at the top of <code>examine.js</code>.',
+        },
+        weigh: {
+          title: 'Weigh the evidence',
+          body: 'Turns stances into weighted votes using quality, relevance and stance strength. The balance picks one of four verdicts; the same numbers feed four confidence factors and their caps.',
+          files: [
+            ['Verdict', 'server/engine/weigh.js · weighEvidence'],
+            ['Confidence caps', 'server/engine/weigh.js · caps'],
+            ['Threshold maths', 'server/engine/weigh.js · verdictFromWeights'],
+          ],
+          change: 'Change the balance threshold or the caps and the UI will show the new score — nothing is hard-coded client-side.',
+        },
+        compose: {
+          title: 'Compose the verdict',
+          body: 'Writes the headline and two or three sentences from the counted stances and the clearest decisive quote. Citation markers are added from real source ids. The optional LLM may rewrite this prose, but the server rejects any citation it cannot map.',
+          files: [
+            ['Deterministic prose', 'server/engine/compose.js'],
+            ['Optional synthesis', 'server/engine/llm.js'],
+            ['Summary validation', 'server/engine/compose.js · validSummary'],
+          ],
+          change: 'The answer templates and the key-sentence rule are in <code>compose.js</code>; the LLM prompt is in <code>llm.js</code>.',
+        },
+        dossier: {
+          title: 'Show the dossier',
+          body: 'The result becomes a verdict card, a confidence cairn, four factor rules, and a numbered evidence ledger. Citations scroll to and expand their source; the receipt copies the visible result.',
+          files: [
+            ['Layout', 'src/components/Dossier.tsx'],
+            ['Verdict + cites', 'src/components/VerdictCard.tsx · CitationText.tsx'],
+            ['Ledger', 'src/components/Ledger.tsx · SourceCard.tsx'],
+            ['Design tokens', 'src/styles/tokens.css · app.css'],
+          ],
+          change: 'Colour and type are CSS variables; component structure lives one level above the styles.',
+        },
+      };
+
+      const nodes = [...document.querySelectorAll('.node')];
+      const title = document.getElementById('detail-title');
+      const body = document.getElementById('detail-body');
+      const files = document.getElementById('detail-files');
+      const change = document.getElementById('detail-change');
+
+      function select(key) {
+        const detail = DETAILS[key];
+        if (!detail) return;
+        nodes.forEach((node) => node.classList.toggle('active', node.dataset.key === key));
+        title.textContent = detail.title;
+        body.textContent = detail.body;
+        files.innerHTML = detail.files
+          .map(([label, path]) => `<li><span>${label}</span><span><code>${path}</code></span></li>`)
+          .join('');
+        change.innerHTML = `<strong>Smallest change:</strong> ${detail.change}`;
+      }
+
+      nodes.forEach((node) => {
+        node.addEventListener('click', () => select(node.dataset.key));
+        node.addEventListener('keydown', (event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            select(node.dataset.key);
+          }
+        });
+        node.setAttribute('tabindex', '0');
+        node.setAttribute('role', 'button');
+      });
+
+      select('desk');
+    </script>
+  </body>
+</html>
