@@ -32,6 +32,7 @@ export function createApp() {
     app.use(
       express.static(dist, {
         index: false,
+        dotfiles: 'allow',
         maxAge: '1h',
         setHeaders(res, filePath) {
           if (filePath.includes(`${path.sep}assets${path.sep}`)) {
@@ -53,7 +54,7 @@ export function createApp() {
         .send('Cairn is not built yet. Run `npm run build` (or `npm run dev` for the Vite server).');
     }
     res.setHeader('cache-control', 'no-cache');
-    return res.sendFile(indexFile);
+    return res.sendFile(indexFile, { dotfiles: 'allow' });
   });
 
   app.use('/api', (_req, res) => {
