@@ -1,0 +1,119 @@
+:root {
+  --paper: #f4efe6;
+  --paper-raised: #fbf7ef;
+  --paper-sunk: #ece5d7;
+  --paper-deep: #e3d9c7;
+  --ink: #17140f;
+  --ink-soft: #3f3a31;
+  --muted: #6f6a61;
+  --faint: #8d867a;
+  --rule: #d7cdbb;
+  --rule-strong: #bfb29c;
+
+  --oxblood: #a63a2b;
+  --oxblood-deep: #7d2a1f;
+  --oxblood-tint: #f0dcd5;
+  --moss: #2f5d4a;
+  --moss-deep: #224537;
+  --moss-tint: #dfe8df;
+  --ochre: #a96b12;
+  --ochre-tint: #f2e3c9;
+  --slate: #4c5560;
+  --slate-tint: #e3e2dd;
+
+  --font-display: 'Fraunces Variable', 'Iowan Old Style', Georgia, serif;
+  --font-body: 'Newsreader Variable', 'Iowan Old Style', Georgia, serif;
+  --font-mono: 'Azeret Mono Variable', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+
+  --max-width: 1240px;
+  --gutter: clamp(20px, 4.2vw, 44px);
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --shadow-sheet: 0 1px 0 rgba(23, 20, 15, 0.04), 0 30px 60px -44px rgba(23, 20, 15, 0.45);
+
+  --band-high: var(--moss);
+  --band-medium: var(--ochre);
+  --band-low: var(--oxblood);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 16px;
+  -webkit-text-size-adjust: 100%;
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  color: var(--ink);
+  background-color: var(--paper);
+  background-image:
+    radial-gradient(1100px 560px at 12% -8%, #fdfaf3 0%, rgba(253, 250, 243, 0) 62%),
+    radial-gradient(900px 520px at 108% 4%, #efe6d5 0%, rgba(239, 230, 213, 0) 58%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0) 30%);
+  font-family: var(--font-body);
+  font-size: 1.06rem;
+  line-height: 1.62;
+  font-variation-settings: 'opsz' 18;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: var(--oxblood);
+  color: var(--paper-raised);
+}
+
+h1,
+h2,
+h3,
+p,
+blockquote,
+figure,
+ol,
+ul,
+dl,
+dd {
+  margin: 0;
+}
+
+ol,
+ul {
+  padding: 0;
+  list-style: none;
+}
+
+a {
+  color: inherit;
+  text-decoration-color: var(--rule-strong);
+  text-underline-offset: 3px;
+}
+
+a:hover {
+  text-decoration-color: var(--oxblood);
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+:focus-visible {
+  outline: 2px solid var(--oxblood);
+  outline-offset: 3px;
+}
+
+strong {
+  font-weight: 620;
+}
