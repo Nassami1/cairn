@@ -190,14 +190,16 @@ export async function verifyClaim(rawClaim, { signal, onEvent = () => {} } = {})
   emit('stage', {
     id: 'compare',
     status: 'done',
-    detail: `${weighed.counts.supports} support · ${weighed.counts.refutes} contradict · ${weighed.counts.neutral} neutral`,
+    detail: weighed.outOfScope
+      ? 'Causal comparison — verdict withheld'
+      : `${weighed.counts.supports} support · ${weighed.counts.refutes} contradict · ${weighed.counts.neutral} neutral`,
   });
 
   const allWarnings = uniqueWarnings([...warnings, ...weighed.warnings]);
 
   emit('stage', { id: 'write', status: 'running' });
   let mode = 'local';
-  if (llmEnabled()) {
+  if (llmEnabled() && !weighed.outOfScope) {
     try {
       const refined = await refineWithLLM({ analysis, verdict: composed, sources: rankedSources }, { signal });
       if (refined) {
@@ -215,7 +217,11 @@ export async function verifyClaim(rawClaim, { signal, onEvent = () => {} } = {})
   emit('stage', {
     id: 'write',
     status: 'done',
-    detail: mode === 'llm' ? 'AI-assisted prose, server-checked citations' : 'Assembled from the quotes',
+    detail: weighed.outOfScope
+      ? 'Causal comparison — reading list, no verdict'
+      : mode === 'llm'
+        ? 'AI-assisted prose, server-checked citations'
+        : 'Assembled from the quotes',
   });
 
   const result = {
@@ -243,6 +249,7 @@ export async function verifyClaim(rawClaim, { signal, onEvent = () => {} } = {})
     },
     warnings: allWarnings,
     cached: false,
+    scope: weighed.outOfScope ? 'causal-comparison' : 'weighed',
     engine: 'evidence-v1',
   };
 

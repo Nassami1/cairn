@@ -300,6 +300,7 @@
             <tbody>
               <tr><td>Verdict threshold</td><td><code>server/engine/weigh.js</code></td><td><code>balance &gt;= 0.3</code></td></tr>
               <tr><td>Confidence weights</td><td><code>server/engine/weigh.js</code></td><td><code>WEIGHTS</code></td></tr>
+              <tr><td>Causal comparison guard</td><td><code>server/engine/weigh.js</code></td><td><code>outOfScope</code></td></tr>
               <tr><td>Stance cues</td><td><code>server/engine/examine.js</code></td><td><code>REFUTE_PATTERNS</code></td></tr>
               <tr><td>Source mix</td><td><code>server/engine/retrieve.js</code></td><td><code>providers</code></td></tr>
               <tr><td>Palette and type</td><td><code>src/styles/tokens.css</code></td><td><code>:root</code></td></tr>
@@ -347,7 +348,7 @@
         },
         analyze: {
           title: 'Understand the claim',
-          body: 'Strips stopwords, extracts capitalised names, separates the predicate from the subject, detects negation, and collects anchors — numbers, percentages and superlatives that a source must mention to be on topic.',
+          body: 'Strips stopwords, extracts capitalised names, separates the predicate from the subject, detects negation, collects anchors — numbers, percentages and superlatives that a source must mention to be on topic — and flags aggregate causal comparisons that the engine will not score.',
           files: [
             ['Validation', 'server/engine/analyze.js · validateClaim'],
             ['Text analysis', 'server/lib/text.js · analyzeClaim'],

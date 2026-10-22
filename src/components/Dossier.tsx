@@ -89,13 +89,14 @@ export function Dossier({
             </div>
           )}
 
-          {result && <Factors factors={result.verdict.confidence.factors} />}
+          {result && result.scope !== 'causal-comparison' && <Factors factors={result.verdict.confidence.factors} />}
         </div>
 
         <Ledger
           sources={sources}
           running={running}
           warnings={running ? warnings : []}
+          outOfScope={result?.scope === 'causal-comparison'}
           openSource={openSource}
           pulseSource={pulseSource}
           onToggle={onToggleSource}

@@ -3,10 +3,13 @@ import { VERDICT_LABELS, formatCheckedAt, sourceName, stanceLabel } from './form
 
 export function buildReceipt(result: VerificationResult): string {
   const { verdict } = result;
+  const outOfScope = result.scope === 'causal-comparison';
   const lines = [
     'CAIRN — EVIDENCE RECEIPT',
     `Claim: ${result.claim}`,
-    `Verdict: ${VERDICT_LABELS[verdict.label].toUpperCase()} · ${verdict.confidence.score}/100 (${verdict.confidence.band} confidence)`,
+    outOfScope
+      ? 'Verdict: NOT SCORED — beyond this desk\'s scope (causal comparison)'
+      : `Verdict: ${VERDICT_LABELS[verdict.label].toUpperCase()} · ${verdict.confidence.score}/100 (${verdict.confidence.band} confidence)`,
     `Checked: ${formatCheckedAt(result.createdAt)}`,
     '',
     verdict.summary,

@@ -27,9 +27,17 @@ function stageSnapshot(result) {
       id: 'compare',
       label: 'Comparing the evidence',
       status: 'done',
-      detail: `${result.verdict.counts.supports} support · ${result.verdict.counts.refutes} contradict · ${result.verdict.counts.neutral} neutral`,
+      detail:
+        result.scope === 'causal-comparison'
+          ? 'Causal comparison — verdict withheld'
+          : `${result.verdict.counts.supports} support · ${result.verdict.counts.refutes} contradict · ${result.verdict.counts.neutral} neutral`,
     },
-    { id: 'write', label: 'Writing the verdict', status: 'done', detail: 'Cached — no new requests' },
+    {
+      id: 'write',
+      label: 'Writing the verdict',
+      status: 'done',
+      detail: result.scope === 'causal-comparison' ? 'Causal comparison — reading list' : 'Cached — no new requests',
+    },
   ];
 }
 

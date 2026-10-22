@@ -992,6 +992,10 @@
   color: var(--oxblood);
 }
 
+.confidence-band--unscored {
+  color: var(--slate);
+}
+
 .confidence-rationale {
   font-size: 0.87rem;
   line-height: 1.5;

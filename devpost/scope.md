@@ -57,6 +57,7 @@ In:
 - Three to five readable sources; pages that cannot be read are dropped and reported.
 - Per-source stance (supports / contradicts / neutral) with the deciding quote.
 - A four-way verdict (Supported / Contradicted / Mixed / Not enough evidence) and a 0–100 confidence score with visible factors.
+- A scope guard that withholds a verdict on aggregate causal comparisons and keeps the sources as a reading list.
 - An extractive, citation-anchored summary with no invented facts.
 - Optional LLM synthesis when an OpenAI-compatible endpoint is configured; the heuristic path remains the default and the fallback.
 - Live progress over Server-Sent Events, because waiting twenty seconds with no feedback is a design failure.
@@ -81,3 +82,4 @@ In:
 - **Custom source whitelists** — interesting for professional fact-checkers, but it turns a one-screen tool into a settings product.
 - **Mobile app** — the web page is responsive; a native shell adds a release pipeline with no new capability.
 - **Fine-tuned model** — retrieval and cross-checking are the hard, useful parts; a fine-tune would hide the reasoning and add cost.
+- **Aggregate causal comparisons** — "A caused more deaths than B prevented" needs study-level evidence. The engine retrieves and shows the sources but refuses to score the claim; guessing from correlated passages is worse than saying so.

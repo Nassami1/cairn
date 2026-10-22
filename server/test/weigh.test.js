@@ -79,6 +79,54 @@ test('a single decisive voice is capped', () => {
   assert.ok(weighed.score <= 58);
 });
 
+test('aggregate causal comparisons are withheld instead of scored', () => {
+  const covid = analyzeClaim('COVID-19 vaccines have caused more deaths than they prevented.');
+  const weighed = weighEvidence(covid, [
+    source({ id: 1, stance: 'supports', domain: 'a.com', family: 'news' }),
+    source({ id: 2, stance: 'supports', domain: 'b.com', family: 'news' }),
+    source({ id: 3, stance: 'refutes', domain: 'c.com', family: 'research' }),
+  ]);
+  assert.equal(weighed.label, 'unverifiable');
+  assert.equal(weighed.outOfScope, true);
+  assert.ok(weighed.score <= 30);
+  assert.ok(weighed.factors.every((factor) => factor.score === 0));
+  assert.ok(weighed.warnings.some((warning) => /causal comparison/i.test(warning)));
+});
+
+test('mostly default-tier support caps confidence', () => {
+  const weighed = weighEvidence(analysis, [
+    source({ id: 1, stance: 'refutes', domain: 'a.com', family: 'news', quality: 0.646 }),
+    source({ id: 2, stance: 'refutes', domain: 'b.com', family: 'news', quality: 0.646 }),
+    source({ id: 3, stance: 'refutes', domain: 'c.com', family: 'reference', quality: 1 }),
+  ]);
+  assert.equal(weighed.label, 'contradicted');
+  assert.ok(weighed.lowTierShare > 0.5);
+  assert.ok(weighed.score <= 66);
+  assert.ok(weighed.warnings.some((warning) => /default-tier/i.test(warning)));
+});
+
+test('tier-one support is not capped by provenance', () => {
+  const weighed = weighEvidence(analysis, [
+    source({ id: 1, stance: 'refutes', domain: 'a.com', family: 'reference', quality: 1 }),
+    source({ id: 2, stance: 'refutes', domain: 'b.com', family: 'news', quality: 0.9 }),
+    source({ id: 3, stance: 'refutes', domain: 'c.com', family: 'research', quality: 0.95 }),
+  ]);
+  assert.ok(weighed.score > 66);
+  assert.ok(!weighed.warnings.some((warning) => /default-tier/i.test(warning)));
+});
+
+test('causal comparisons get a scope message, not a verdict', () => {
+  const covid = analyzeClaim('COVID-19 vaccines have caused more deaths than they prevented.');
+  const weighed = weighEvidence(covid, [
+    source({ id: 1, stance: 'supports', domain: 'a.com', family: 'news' }),
+    source({ id: 2, stance: 'refutes', domain: 'b.com', family: 'research' }),
+  ]);
+  const verdict = composeVerdict(covid, weighed);
+  assert.equal(verdict.headline, 'Beyond this desk’s scope.');
+  assert.match(verdict.summary, /reading list/);
+  assert.equal(verdict.caveats.length, 3);
+});
+
 test('composed prose cites a real source and carries caveats', () => {
   const weighed = weighEvidence(analysis, [
     source({ id: 1, stance: 'refutes', domain: 'wikipedia.org', family: 'reference', quality: 1 }),

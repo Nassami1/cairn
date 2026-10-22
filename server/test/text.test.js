@@ -59,6 +59,16 @@ test('claim analysis separates subject, predicate, anchors and polarity', () => 
   assert.equal(hasNegation('This is not only wrong but late'), false);
 });
 
+test('aggregate causal comparisons are classified separately', () => {
+  assert.equal(
+    analyzeClaim('COVID-19 vaccines have caused more deaths than they prevented.').claimType,
+    'causal-comparison'
+  );
+  assert.equal(analyzeClaim('Vaccines prevent more deaths than they cause.').claimType, 'causal-comparison');
+  assert.equal(analyzeClaim('The Eiffel Tower is taller in summer than in winter.').claimType, 'simple');
+  assert.equal(analyzeClaim('The Great Wall of China is visible from space with the naked eye.').claimType, 'simple');
+});
+
 test('sentence splitting protects common abbreviations', () => {
   const sentences = splitSentences('Dr. Smith studied the U.S. record. It was 12 m long. That mattered.');
   assert.equal(sentences.length, 3);

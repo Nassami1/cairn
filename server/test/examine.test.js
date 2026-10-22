@@ -92,6 +92,41 @@ test('source examination picks the deciding quote and reports its stance', () =>
   assert.equal(source.passages.length > 0, true);
 });
 
+test('a fact-check headline cannot turn a quoted claim into support', () => {
+  const covid = analyzeClaim('COVID-19 vaccines have caused more deaths than they prevented.');
+  const source = examineSource(
+    {
+      title: "Fact Check: CDC didn't say COVID-19 vaccines are 'largest carcinogenic exposure in history'",
+      url: 'https://example.com/fact-check',
+      domain: 'example.com',
+      family: 'news',
+      provider: 'test',
+      quality: 0.65,
+      text: 'COVID-19 vaccines have caused more deaths than they prevented, according to the post being checked.',
+    },
+    covid
+  );
+  assert.equal(source.stance, 'unclear');
+  assert.match(source.note, /fact check/i);
+});
+
+test('a fact-check headline can still refute when the body refutes', () => {
+  const covid = analyzeClaim('COVID-19 vaccines have caused more deaths than they prevented.');
+  const source = examineSource(
+    {
+      title: 'Fact Check: The claim that COVID-19 vaccines caused more deaths than they prevented is false',
+      url: 'https://example.com/fact-check-2',
+      domain: 'example.com',
+      family: 'news',
+      provider: 'test',
+      quality: 0.9,
+      text: 'The claim that COVID-19 vaccines caused more deaths than they prevented is false; the data show the opposite.',
+    },
+    covid
+  );
+  assert.equal(source.stance, 'refutes');
+});
+
 test('a source that ignores the predicate cannot support the claim', () => {
   const candidate = {
     title: 'A guide to visiting the Great Wall',

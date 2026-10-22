@@ -7,7 +7,7 @@
 
 | Item | Status |
 |---|---|
-| Working proof of concept | Built and exercised end-to-end; `npm test` green (39 tests), live check returns a cited verdict. |
+| Working proof of concept | Built and exercised end-to-end; `npm test` green (46 tests), live check returns a cited verdict. |
 | `scope.md`, `prd.md`, `spec.md` | Present in `devpost/`, marked approved. |
 | Public repository | Not pushed yet — needs the entrant's GitHub account and explicit OK to publish. |
 | MIT license at repo root | Present. |
@@ -33,9 +33,10 @@
   (research). Optional Brave/Tavily web search when a key is present.
 - Reads the full pages, not headlines; drops pages it cannot read rather than guessing.
 - Tags each source Supports / Contradicts / Neutral, with the exact passage that decided it.
-- Returns Supported / Contradicted / Mixed / Not enough evidence.
+- Returns Supported / Contradicted / Mixed / Not enough evidence, and withholds a verdict on aggregate causal comparisons.
 - Confidence 0–100 from four published factors (agreement 32%, independence 24%, directness 26%,
-  source quality 18%), with caps for thin evidence.
+  source quality 18%), with caps for thin evidence, one-family evidence, and deciding weight that is
+  mostly from default-tier domains. Causal comparisons are shown as a reading list with "Not scored".
 - Streams progress over Server-Sent Events; citations jump to the evidence; a plain-text receipt copies.
 - No login, no database, no analytics, no API key required.
 - Optional LLM (OpenAI-compatible) rewrites the summary only; the verdict and citations stay server-side

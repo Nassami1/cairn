@@ -19,7 +19,9 @@ async function main() {
   assert.ok(result.sources.length >= 1, 'at least one readable source');
   assert.ok(result.verdict.confidence.score > 0 && result.verdict.confidence.score <= 100);
   assert.ok(result.verdict.summary.length > 40);
-  assert.ok(result.verdict.summary.match(/\[\d\]/), 'summary carries a citation');
+  if (result.verdict.label !== 'unverifiable') {
+    assert.ok(result.verdict.summary.match(/\[\d\]/), 'summary carries a citation');
+  }
   for (const source of result.sources) {
     assert.ok(source.url.startsWith('http'));
     assert.ok(source.quote.length > 0);

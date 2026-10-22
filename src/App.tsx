@@ -28,9 +28,15 @@ function completionDetail(id: StageId, result: VerificationResult): string {
     case 'read':
       return `Read ${result.stats.read} of ${result.stats.candidates} pages`;
     case 'compare':
-      return `${result.verdict.counts.supports} support · ${result.verdict.counts.refutes} contradict · ${result.verdict.counts.neutral} neutral`;
+      return result.scope === 'causal-comparison'
+        ? 'Causal comparison — verdict withheld'
+        : `${result.verdict.counts.supports} support · ${result.verdict.counts.refutes} contradict · ${result.verdict.counts.neutral} neutral`;
     default:
-      return result.mode === 'llm' ? 'AI-assisted prose' : 'Assembled from the quotes';
+      return result.scope === 'causal-comparison'
+        ? 'Reading list, no verdict'
+        : result.mode === 'llm'
+          ? 'AI-assisted prose'
+          : 'Assembled from the quotes';
   }
 }
 

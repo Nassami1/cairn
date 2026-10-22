@@ -53,6 +53,8 @@ const SUPPORT_PATTERNS = [
   /\bcorrect\b/i,
 ];
 
+const FACT_CHECK_TITLE = /\bfact[ -]?check(?:s|ed|ing)?\b/i;
+
 const BOILERPLATE_PATTERNS = [
   /\b(subscribe|newsletter|sign up|sign-up|click here|read more|advertisement|advertising|sponsored|affiliate|commission)\b/i,
   /\b(cookie|privacy policy|terms of (?:use|service)|all rights reserved)\b/i,
@@ -276,9 +278,19 @@ export function examineSource(candidate, analysis) {
   if (relevance < 0.25 && stance !== 'neutral') {
     stance = 'neutral';
   }
-  const stanceStrength = best && stance !== 'neutral' && stance !== 'unclear'
+  let stanceStrength = best && stance !== 'neutral' && stance !== 'unclear'
     ? Math.round((best.strength ?? 0) * 1000) / 1000
     : 0;
+  let note = best?.reason ?? 'the retrieved text did not take a clear side';
+
+  // A fact-check headline is a framing, not a stance. If the body otherwise
+  // looks like support, it is usually quoting the claim being checked; that is
+  // not evidence for the claim. Refutations are left alone.
+  if (FACT_CHECK_TITLE.test(candidate.title) && stance === 'supports') {
+    stance = 'unclear';
+    stanceStrength = 0;
+    note = 'The headline frames this as a fact check; a quoted claim is not support.';
+  }
 
   return {
     title: candidate.title,
@@ -292,7 +304,7 @@ export function examineSource(candidate, analysis) {
     stance,
     stanceStrength: Math.min(1, stanceStrength),
     relevance,
-    note: best?.reason ?? 'the retrieved text did not take a clear side',
+    note,
     quote: best ? trimQuote(best.text, 220) : '',
     quoteHits: best?.exactHits ?? 0,
     passages: top.slice(0, 3).map((passage) => trimQuote(passage.text, 600)),

@@ -9,21 +9,22 @@ status: approved
 
 Cairn is one small web server and one web page. The server has four jobs, in order: **understand the claim**, **find candidate sources**, **read and examine them**, and **weigh the evidence into a verdict**. The page is only a view of that process — it shows each job as it happens and then lays out the result.
 
-- **Understand the claim.** The server tidies the text, pulls out the important words and any capitalised names ("Eiffel Tower"), notices whether the claim is already negative ("is *not* visible"), and builds a few search queries from those.
+- **Understand the claim.** The server tidies the text, pulls out the important words and any capitalised names ("Eiffel Tower"), notices whether the claim is already negative ("is *not* visible"), and builds a few search queries from those. It also flags aggregate causal comparisons ("A caused more deaths than B prevented"), which this engine does not score.
+- **Respect the limit.** For a causal comparison the pipeline still retrieves and reads sources, but the verdict is withheld: the dossier says the claim is beyond the desk's scope, marks confidence as not scored, and keeps the sources as a reading list. The LLM synthesis is skipped.
 - **Find candidate sources.** Three retrievers ask three different kinds of source in parallel: an encyclopedia (Wikipedia), recent news (Bing News RSS), and research literature (OpenAlex). Each returns candidates with a title, a link, and a source family. Optionally a fourth web-search retriever runs if the operator configured one.
 - **Read and examine.** The server fetches each candidate page, strips the navigation and scripts, keeps the article text, and scores its sentences against the claim's concepts. For each source it picks the strongest passages and asks: does this passage agree with the claim, contradict it, or neither? The answer is a stance plus the exact quoted sentence that produced it.
-- **Weigh and write.** Each source becomes a weighted vote — better sources and more direct passages count more. The balance of votes produces one of four verdicts. A confidence score is computed from four named factors, and a short answer is assembled from the deciding quotes. If an LLM is configured, it may rewrite that answer into cleaner prose under strict rules; it never gets to change the verdict, the sources, or invent a citation.
+- **Weigh and write.** Each source becomes a weighted vote — better sources and more direct passages count more. The balance of votes produces one of four verdicts, or withholds the verdict for a causal comparison. A confidence score is computed from four named factors and capped when most of the deciding weight comes from default-tier domains. A short answer is assembled from the deciding quotes. If an LLM is configured, it may rewrite that answer into cleaner prose under strict rules; it never gets to change the verdict, the sources, or invent a citation.
 
 Why this shape: every number on screen must be traceable to a quote and a rule. A single large model call would be simpler to write but impossible to audit, and the product's entire promise is auditability. The LLM is therefore an optional prose layer, not the source of truth.
 
 ## The Core Journey Through the System
 
 1. Maya presses **Weigh this claim** → the page opens `POST /api/verify` and reads a stream of events.
-2. The server validates the claim (8–400 chars, no question mark) → `analyzeClaim()` produces keywords, entities, polarity and query variants → emits `stage: understand` done.
+2. The server validates the claim (8–400 chars, no question mark) → `analyzeClaim()` produces keywords, entities, polarity, query variants and a claim type (simple or causal comparison) → emits `stage: understand` done.
 3. `retrieveCandidates()` fan-outs to Wikipedia, Bing News and OpenAlex with a shared 8-second budget → dedupes by URL and domain, ranks, and emits `stage: retrieve` done with counts and any provider errors.
 4. `readSources()` fetches the top candidates in parallel (max 4 at a time), extracts article text, drops pages under 400 characters, and keeps up to five sources with at least two families where possible. Each surviving source is examined immediately and emitted as a `source` event.
 5. `examineSource()` splits the text into passages, scores them, detects stance and picks the quote. The page renders its card as soon as the event arrives.
-6. `weighEvidence()` computes source weights, the support/refute balance, the verdict label and the four confidence factors. `composeVerdict()` writes the headline and the citation-anchored answer from the quotes.
+6. `weighEvidence()` computes source weights, the support/refute balance, the verdict label and the four confidence factors. A causal comparison is forced to `unverifiable` and capped at 30; a verdict whose deciding weight is mostly default-tier is capped at 66. `composeVerdict()` writes the headline and, for a normal claim, the citation-anchored answer from the quotes.
 7. If configured, `refineWithLLM()` may rewrite only the headline/summary and per-source reasons; the server validates every returned citation index and stance, and falls back to the deterministic text on any error.
 8. The server emits `result`, caches it for 30 minutes under the normalised claim, and closes the stream. The page swaps the stage rail for the finished dossier and moves focus to the verdict heading.
 9. Clicking `[2]` calls a client-side handler that scrolls source 2 into view and expands it; no server round-trip.
@@ -84,11 +85,11 @@ Carried forward from `prd.md > Look and Feel`; this is implementable direction, 
 - `server/routes/verify.js` — validates input, applies the rate limiter, checks the cache, chooses SSE or JSON, and translates pipeline events to the wire format.
   PRD ref: `prd.md > States and Boundaries`.
 - `server/engine/verify.js` — the orchestrator: analysis → retrieval → reading → examination → weighing → composition, emitting stage/source/result events and honouring an abort signal.
-- `server/engine/analyze.js` — normalisation, tokenisation, stopwords, entity phrases, polarity, query variants, synonym expansion.
+- `server/engine/analyze.js` — normalisation, tokenisation, stopwords, entity phrases, polarity, query variants, synonym expansion, claim-type detection.
 - `server/engine/retrieve.js` — runs providers with `Promise.allSettled` under a 14-second per-provider budget, dedupes by canonical URL and title, filters off-topic and disambiguation pages, ranks candidates, enforces per-family quotas.
 - `server/engine/extract.js` — HTML → title/date/main text via Cheerio; removes chrome; extracts `article:published_time`; returns `null` below the readability threshold. Also parses Wikipedia section headings.
 - `server/engine/examine.js` — passage splitting and scoring, stance detection, quote selection, per-source relevance and quality.
-- `server/engine/weigh.js` — weights, verdict thresholds, confidence factors and band.
+- `server/engine/weigh.js` — weights, verdict thresholds, causal-comparison guard, provenance cap, confidence factors and band.
 - `server/engine/compose.js` — deterministic headline/summary writer with citation anchoring and caveats.
 - `server/engine/llm.js` — optional synthesis; builds a numbered-evidence prompt, requests JSON, validates stance labels and citation indices, falls back on any failure.
 
@@ -156,6 +157,7 @@ type VerificationResult = {
   sources: Source[];
   stats: { candidates: number; read: number; domains: number; families: string[] };
   warnings: string[]; cached?: boolean;
+  scope?: 'weighed' | 'causal-comparison';
 };
 ```
 
@@ -253,6 +255,7 @@ cairn/
 - **Wikipedia rate-limits the request** → retry twice with backoff; if still limited, continue with News/OpenAlex and surface "Reference search was unavailable" in the dossier footer. The verdict still computes, with lower independence.
 - **Every provider returns fewer than two readable pages** → verdict `unverifiable`, confidence Low, with "We could read 1 of 6 sources" and the attempted URLs. The UI does not pretend to have a verdict.
 - **A publisher's page is JavaScript-only or blocks the fetch** → the candidate is marked unreadable and dropped; the ledger only shows sources whose text we actually read, and the stats line reports the drop count.
+- **The claim asserts an aggregate causal comparison** → the dossier is still built and the sources are shown, but the verdict is withheld, confidence reads "Not scored", and the summary explains why. The LLM is skipped.
 - **LLM times out or returns invalid JSON/citations** → the deterministic composition is used unchanged; a non-blocking warning notes that AI synthesis was skipped.
 - **The browser disconnects mid-stream** → the abort signal cancels in-flight fetches; no orphan work beyond the current microtask.
 - **A user pastes a URL or an oversized claim** → validation rejects it with a specific inline message; the server also enforces the limit and returns `400`.
@@ -261,6 +264,7 @@ cairn/
 
 - **Heuristic stance detection** instead of a trained NLI/LLM classifier — keeps the keyless path free, deterministic and explainable, and makes every stance traceable to cue words plus overlap. The fuller version would need a model download or API spend and would still need the quote for trust.
 - **Sentence and passage scoring** instead of embeddings — no vector store, no embedding API, instant cold start. The trade-off is synonym gaps; mitigated by a small synonym lexicon, entity weighting and Wikipedia section titles. The fuller version would embed the claim and every sentence.
+- **Refusing aggregate causal comparisons** instead of inferring causation from quotes — passage-level evidence cannot establish population-level effects, and a confident wrong answer is worse than a withheld one. The fuller version would need study-level evidence extraction and effect sizes.
 - **A 30-minute in-memory cache** instead of a database — no schema, no cleanup job, no privacy policy. The fuller version would persist dossiers and support history.
 - **One claim per request** instead of paragraph decomposition — keeps the citation-to-claim mapping exact. The fuller version would split conjunctions and verify each atom separately.
 - **RSS news search** instead of a paid search API — the only keyless route that reliably returns publisher URLs. The fuller version would use Brave or Tavily for broader coverage.

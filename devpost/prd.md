@@ -98,6 +98,7 @@ Established direction, carried from `scope.md > Inspiration & Identity`:
 - **Running** — stage rail active, ledger skeleton with three placeholder slots, submit disabled.
 - **Partial failure** — one provider down: the dossier proceeds with fewer sources and a note in the footer of the ledger ("News search unavailable — this dossier used 2 families").
 - **Not enough evidence** — fewer than two readable sources or no source with a decisive passage: grey verdict, explanation of what was missing, and a suggestion to make the claim more specific. This is a first-class result, not an error.
+- **Causal comparison** — a claim of the form "A caused more X than B prevented" is retrieved and shown, but the verdict is withheld: "Not enough evidence" with the headline "Beyond this desk's scope", confidence displayed as "Not scored", and the sources kept as a reading list. LLM synthesis is skipped.
 - **No readable sources** — error panel with the reason ("the pages we found could not be read"), a retry, and a link to the sources that were attempted.
 - **Rate limited** — 429 from the server: "The desk is taking a short breath. Try again in 30 seconds." with a live countdown.
 - **Invalid input** — inline hint under the textarea; focus returns to it.
@@ -121,8 +122,9 @@ Established direction, carried from `scope.md > Inspiration & Identity`:
 - A React single-page desk with the desk and dossier modes described above, fully responsive.
 - Retrieval across Wikipedia, Bing News RSS, and OpenAlex, with optional Brave/Tavily web search.
 - An explainable stance/verdict/confidence engine, plus optional OpenAI-compatible LLM synthesis with strict fallback.
+- A scope guard for aggregate causal comparisons, so the engine withholds a verdict instead of inferring causation from correlated passages.
 - Unit and integration tests for the engine, a live smoke test, and a documented local run.
-- The public-repo furniture: README, MIT license, `.env.example`, demo script, submission copy.
+- The public-repo furniture: README, MIT license, `.env.example`, demo shot list, submission worksheet.
 
 ## Deferred From the POC
 
@@ -145,10 +147,12 @@ Established direction, carried from `scope.md > Inspiration & Identity`:
 - **Real-time monitoring of breaking news** — retrieval is on demand, and news coverage of a fresh event is often contradictory by nature.
 - **Answering open-ended questions** — no proposition, no stance; this is a verification tool, not an assistant.
 - **Being a search engine** — the ledger is short and curated, not exhaustive.
+- **Adjudicating aggregate causal comparisons** — passage-level evidence cannot establish population-level causation; the engine says so instead of guessing.
 - **Storing user data** — no accounts, no analytics, no cookies beyond none at all.
 
 ## Open Questions
 
 - Should the confidence band be calibrated against a labelled claim set? — Can wait; v1 uses a documented, deterministic formula and says it is heuristic.
+- Should causal comparisons ever be scored when a source states the comparison explicitly? — Deferred; v1 withholds every aggregate causal comparison rather than carve exceptions.
 - Is headline-level news evidence acceptable when a publisher blocks page fetching? — Resolved for v1: only full readable pages count, and blocked pages are dropped; revisit if the readable-page rate is poor.
 - Should the LLM path be on by default when a key exists? — Resolved: yes, with a visible badge and heuristic fallback, because synthesis quality is the main gain and the citations remain server-verified.

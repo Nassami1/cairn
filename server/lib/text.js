@@ -235,6 +235,17 @@ export function analyzeClaim(rawClaim) {
   const numbers = rawTokens.filter((token) => /^\d+$/.test(token) || NUMBER_WORDS.has(token));
   const anchors = [...new Set([...numbers, ...keywords.filter((keyword) => SUPERLATIVES.has(keyword))])];
 
+  // Aggregate causal comparisons ("A caused more deaths than B prevented") need
+  // study-level evidence, not passage overlap. Recognise them so the engine can
+  // withhold a verdict instead of over-reading a handful of quotes.
+  const causalVerb = /\b(cause[sd]?|causing|caused|lead(?:s|ing)? to|led to|result(?:s|ed|ing)? in|contribut(?:e|es|ed|ing) to)\b/i;
+  const comparative = /\b(more|fewer|less|greater|higher|lower|deadlier|safer|better|worse)\b[^.!?]{0,80}\bthan\b/i;
+  const reverseComparative = /\bthan\b[^.!?]{0,80}\b(more|fewer|less|greater|higher|lower)\b/i;
+  const claimType =
+    causalVerb.test(claim) && (comparative.test(claim) || reverseComparative.test(claim))
+      ? 'causal-comparison'
+      : 'simple';
+
   return {
     claim,
     normalized: claim.toLowerCase().replace(/\s+/g, ' '),
@@ -249,6 +260,7 @@ export function analyzeClaim(rawClaim) {
     anchors,
     anchorSet: [...new Set([...anchors, ...anchors.map(stemWord)])],
     polarity: negation ? 'negative' : 'positive',
+    claimType,
     queries: uniqueQueries,
     primaryQuery: uniqueQueries[0],
     contentCount: keywords.length,

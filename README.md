@@ -19,7 +19,8 @@ The name is the metaphor. A cairn is a stack of stones that marks a safe path; a
 - Reads full pages rather than headlines, and drops pages it cannot read rather than guessing.
 - Tags each source **Supports**, **Contradicts**, **Neutral**, or **Unclear**, with the deciding quote.
 - Returns **Supported**, **Contradicted**, **Mixed**, or **Not enough evidence**.
-- Derives confidence from four published factors: agreement, independence, directness, and source quality.
+- Withholds a verdict on aggregate causal comparisons instead of over-reading correlated passages.
+- Derives confidence from four published factors — agreement, independence, directness, and source quality — when a verdict is scored.
 - Streams the work as it happens and lets a citation jump straight to its evidence.
 - Copies a plain-text receipt with the verdict and numbered sources.
 - Runs without an API key, account, database, or analytics.
@@ -63,6 +64,7 @@ The score is capped when the evidence is thin:
 | Fewer than two decisive sources | 55 |
 | Only one source family | 66 |
 | Mixed verdict | 64 |
+| More than half of the deciding weight from default-tier sources | 66 |
 | Fewer than three domains | 76 |
 | Fewer than four sources | 80 |
 | Fewer than five sources | 88 |
@@ -70,6 +72,8 @@ The score is capped when the evidence is thin:
 | Absolute ceiling | 94 |
 
 The four factors, their weights, and the rationale are printed in the dossier. Confidence is a reading of the evidence, not a claim of certainty, and the model is documented rather than hidden.
+
+"Default-tier" means a source quality below 0.70, typically an unlisted general news domain. The provenance cap applies to the winning side, so it works for both Supported and Contradicted verdicts.
 
 ## Quick start
 
@@ -111,12 +115,12 @@ The masthead badge reads **Keyless evidence engine** or **AI-assisted synthesis*
 ## Tests
 
 ```bash
-npm test          # 39 unit and integration tests, no network
+npm test          # 46 unit and integration tests, no network
 npm run test:live # one real claim end to end; needs the public web
 npm run typecheck # TypeScript checks for the client
 ```
 
-The suite covers claim analysis, predicate concepts, nested negation, anchor gating, verdict thresholds, confidence caps, summary validation, HTML extraction, the SSRF guard, URL canonicalisation, caching, rate limiting, and the semaphore.
+The suite covers claim analysis, predicate concepts, nested negation, anchor gating, causal-comparison detection, fact-check framing, verdict thresholds, confidence caps, summary validation, HTML extraction, the SSRF guard, URL canonicalisation, caching, rate limiting, and the semaphore.
 
 ## Project layout
 
@@ -145,6 +149,12 @@ cairn/
 
 Every entry in the ledger is a page the server actually read. The quote under each title is the passage that produced its stance. Clicking a citation scrolls to that card, expands it, and shows the retrieval route and the outbound link.
 
+## When the desk declines
+
+Some claims cannot be weighed honestly from passages. Aggregate causal comparisons such as "X caused more deaths than it prevented" need study-level evidence, so Cairn shows the sources as a reading list and withholds the verdict instead of inferring causation from overlap.
+
+![A withheld verdict for a causal comparison](docs/scope-guard.png)
+
 ## Security and privacy
 
 - No accounts, analytics, cookies, or client-side storage.
@@ -161,6 +171,8 @@ Every entry in the ledger is a page the server actually read. The quote under ea
 - **Readability matters.** JavaScript-only and paywalled pages are dropped, and the run notes report how many.
 - **Confidence is not calibrated** against a labelled claim set. The formula is deterministic and documented, which is the next best thing.
 - **Rate limits are real.** If Wikimedia throttles a request, the dossier proceeds with the other families and the confidence caps reflect it.
+- **Aggregate causal comparisons are out of scope.** Claims such as "A caused more deaths than it prevented" need study-level evidence. Cairn returns Not enough evidence, marks the confidence as not scored, and keeps the sources as a reading list rather than turning correlated passages into a verdict.
+- **Fact-check headlines are framing, not evidence.** A fact-check article that appears to support a claim is usually quoting the claim being checked. Such a source is tagged Unclear, not Support.
 
 ## Build With AI: Basics
 

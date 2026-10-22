@@ -72,6 +72,7 @@ export interface VerificationResult {
   };
   warnings: string[];
   cached: boolean;
+  scope?: 'weighed' | 'causal-comparison';
   engine: string;
 }
 

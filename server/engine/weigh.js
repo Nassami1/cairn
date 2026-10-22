@@ -12,6 +12,9 @@ const WEIGHTS = {
   quality: 0.18,
 };
 
+/** Below this source quality, a domain is in the default/general bucket. */
+const LOW_TIER_QUALITY = 0.7;
+
 const clamp01 = (value) => Math.max(0, Math.min(1, Number.isFinite(value) ? value : 0));
 const round = (value, places = 2) => Math.round(value * 10 ** places) / 10 ** places;
 
@@ -25,6 +28,7 @@ export function weighEvidence(analysis, sources, { providerFailures = [] } = {})
   const refutes = examined.filter((source) => source.stance === 'refutes');
   const neutral = examined.filter((source) => source.stance !== 'supports' && source.stance !== 'refutes');
   const decisive = [...supports, ...refutes];
+  const outOfScope = analysis?.claimType === 'causal-comparison';
 
   const supportWeight = supports.reduce((sum, source) => sum + source.weight, 0);
   const refuteWeight = refutes.reduce((sum, source) => sum + source.weight, 0);
@@ -35,11 +39,21 @@ export function weighEvidence(analysis, sources, { providerFailures = [] } = {})
   const families = [...new Set(examined.map((source) => source.family))];
 
   let label = 'unverifiable';
-  if (examined.length && decisive.length && totalWeight >= 0.45) {
+  if (!outOfScope && examined.length && decisive.length && totalWeight >= 0.45) {
     if (balance >= 0.3) label = 'supported';
     else if (balance <= -0.3) label = 'contradicted';
     else label = 'mixed';
   }
+
+  // A verdict built mostly on default-tier domains is a reading, not a settled
+  // finding. Cap the confidence without changing which side the tags favour.
+  const winning = label === 'supported' ? supports : label === 'contradicted' ? refutes : [];
+  const winningWeight = winning.reduce((sum, source) => sum + source.weight, 0);
+  const lowTierWeight = winning
+    .filter((source) => (source.quality ?? 0.5) < LOW_TIER_QUALITY)
+    .reduce((sum, source) => sum + source.weight, 0);
+  const lowTierShare = winningWeight > 0 ? lowTierWeight / winningWeight : 0;
+  const lowTierCapped = !outOfScope && winning.length >= 2 && lowTierShare > 0.5;
 
   const agreement = totalWeight > 0 ? Math.abs(balance) : 0;
   const independence = clamp01(Math.min(1, domains / 3) * 0.55 + Math.min(1, families.length / 2) * 0.45);
@@ -69,6 +83,8 @@ export function weighEvidence(analysis, sources, { providerFailures = [] } = {})
   if (examined.length < 5) caps.push(88);
   if (examined.length < 4) caps.push(80);
   if (analysis.isQuestion) caps.push(40);
+  if (lowTierCapped) caps.push(66);
+  if (outOfScope) caps.push(30);
   if (caps.length) score = Math.min(score, ...caps);
   score = Math.max(4, Math.min(94, score));
 
@@ -91,12 +107,20 @@ export function weighEvidence(analysis, sources, { providerFailures = [] } = {})
       : 'No decisive source to weigh',
   };
 
-  const factors = [
-    { key: 'agreement', label: 'Agreement', score: round(agreement), weight: WEIGHTS.agreement, note: factorNotes.agreement },
-    { key: 'independence', label: 'Independence', score: round(independence), weight: WEIGHTS.independence, note: factorNotes.independence },
-    { key: 'directness', label: 'Directness', score: round(directness), weight: WEIGHTS.directness, note: factorNotes.directness },
-    { key: 'quality', label: 'Source quality', score: round(quality), weight: WEIGHTS.quality, note: factorNotes.quality },
-  ];
+  const factors = outOfScope
+    ? ['agreement', 'independence', 'directness', 'quality'].map((key) => ({
+        key,
+        label: { agreement: 'Agreement', independence: 'Independence', directness: 'Directness', quality: 'Source quality' }[key],
+        score: 0,
+        weight: WEIGHTS[key],
+        note: 'Not scored for causal comparisons',
+      }))
+    : [
+        { key: 'agreement', label: 'Agreement', score: round(agreement), weight: WEIGHTS.agreement, note: factorNotes.agreement },
+        { key: 'independence', label: 'Independence', score: round(independence), weight: WEIGHTS.independence, note: factorNotes.independence },
+        { key: 'directness', label: 'Directness', score: round(directness), weight: WEIGHTS.directness, note: factorNotes.directness },
+        { key: 'quality', label: 'Source quality', score: round(quality), weight: WEIGHTS.quality, note: factorNotes.quality },
+      ];
 
   const decisiveCount = supports.length + refutes.length;
   let reading;
@@ -107,11 +131,21 @@ export function weighEvidence(analysis, sources, { providerFailures = [] } = {})
   const neutrality = neutral.length
     ? ` ${neutral.length} ${neutral.length === 1 ? 'source stayed' : 'sources stayed'} neutral.`
     : '';
-  const rationale = `${reading}${neutrality} ${domains} ${domains === 1 ? 'domain' : 'domains'} across ${families.length} ${
-    families.length === 1 ? 'family' : 'families'
-  }.`;
+
+  let rationale;
+  if (outOfScope) {
+    rationale =
+      'Cairn does not score causal comparisons. The sources are shown as a reading list, not weighed into a verdict.';
+  } else {
+    rationale = `${reading}${neutrality} ${domains} ${domains === 1 ? 'domain' : 'domains'} across ${families.length} ${
+      families.length === 1 ? 'family' : 'families'
+    }.`;
+    if (lowTierCapped) rationale += ' Most of the deciding weight comes from default-tier domains.';
+  }
 
   const warnings = [];
+  if (outOfScope) warnings.push('Causal comparison: the verdict is withheld.');
+  if (lowTierCapped) warnings.push('Most deciding weight comes from default-tier domains; confidence is capped.');
   if (neutral.length && label !== 'unverifiable') {
     warnings.push(`${neutral.length} source${neutral.length === 1 ? '' : 's'} did not take a clear side`);
   }
@@ -130,6 +164,8 @@ export function weighEvidence(analysis, sources, { providerFailures = [] } = {})
     families,
     warnings,
     sources: examined,
+    outOfScope,
+    lowTierShare: round(lowTierShare, 2),
   };
 }
 

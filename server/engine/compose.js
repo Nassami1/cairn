@@ -34,6 +34,23 @@ function strongestOf(sources) {
 
 export function composeVerdict(analysis, weighed) {
   const { label, score, band, factors, rationale, counts, sources, families, domains } = weighed;
+
+  if (weighed.outOfScope) {
+    return {
+      label: 'unverifiable',
+      headline: 'Beyond this desk’s scope.',
+      summary:
+        'This claim asserts a causal comparison: that one thing caused more harm than another prevented. Cairn reads and quotes sources, but it cannot weigh population-level causation. The sources below are a reading list, not a verdict.',
+      confidence: { score, band, factors, rationale },
+      counts,
+      caveats: [
+        'Causal comparisons require study-level evidence; this engine does not adjudicate them.',
+        'The stance tags below are readings of passages, not a verdict on the claim.',
+        'A more specific, attributable claim is easier to verify.',
+      ],
+    };
+  }
+
   const decisive = sources.filter((source) => source.stance === 'supports' || source.stance === 'refutes');
   const neutral = sources.filter((source) => source.stance !== 'supports' && source.stance !== 'refutes');
   const sentences = [];

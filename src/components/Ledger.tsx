@@ -8,9 +8,10 @@ interface LedgerProps {
   openSource: number | null;
   pulseSource: number | null;
   onToggle: (id: number) => void;
+  outOfScope?: boolean;
 }
 
-export function Ledger({ sources, running, warnings, openSource, pulseSource, onToggle }: LedgerProps) {
+export function Ledger({ sources, running, warnings, openSource, pulseSource, onToggle, outOfScope }: LedgerProps) {
   const domains = new Set(sources.map((source) => source.domain)).size;
   const families = new Set(sources.map((source) => source.family)).size;
 
@@ -21,13 +22,17 @@ export function Ledger({ sources, running, warnings, openSource, pulseSource, on
           Evidence ledger
         </h2>
         <span className="ledger-stats">
-          {sources.length} {sources.length === 1 ? 'source' : 'sources'}
-          {domains ? ` · ${domains} ${domains === 1 ? 'domain' : 'domains'}` : ''}
-          {families ? ` · ${families} ${families === 1 ? 'family' : 'families'}` : ''}
+          {outOfScope
+            ? 'Reading list · not weighed'
+            : `${sources.length} ${sources.length === 1 ? 'source' : 'sources'}${
+                domains ? ` · ${domains} ${domains === 1 ? 'domain' : 'domains'}` : ''
+              }${families ? ` · ${families} ${families === 1 ? 'family' : 'families'}` : ''}`}
         </span>
       </div>
       <p className="ledger-intro">
-        Every entry is a page we actually read. The quote under each title is the passage that produced its stance.
+        {outOfScope
+          ? 'These stance tags are readings, not votes. The verdict was withheld, so no source was weighed into a conclusion.'
+          : 'Every entry is a page we actually read. The quote under each title is the passage that produced its stance.'}
       </p>
 
       <div className="ledger-list">
