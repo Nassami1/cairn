@@ -35,7 +35,7 @@ Build mode: fast (mechanical verification at every slice; the hands-on checkpoin
   PRD ref: `prd.md > Features and Behavior > Verdict`, `prd.md > Features and Behavior > Confidence and factors`
   Spec ref: `spec.md > How This Works, In Plain Language`
   Build: Claim analysis with entities/predicates/anchors; passage scoring; negation and refutation cues; source weighting; four verdict states; confidence caps.
-  Verify (mechanical): `npm test` covers 46 cases including nested negation, off-topic tourism pages, the 10-percent anchor, and confidence caps; live Great Wall run returns Contradicted with quoted counter-evidence.
+  Verify (mechanical): `npm test` covers 55 cases including nested negation, off-topic tourism pages, the 10-percent anchor, and confidence caps; live Great Wall run returns Contradicted with quoted counter-evidence.
   Learner check: Read the Great Wall dossier and try to argue with the verdict using the quotes on screen.
   Commit: `Add retrieval, stance, verdict engine, and SSE API`
 
@@ -96,6 +96,7 @@ Activity mode: live app in Chrome plus the static app map.
 - Tourism and celebrity news about the Great Wall were counted as support because they shared the subject — the build now requires distinct predicate concepts and claim-specific anchors (numbers, percent, superlatives) before a passage can take a side.
 - The first confidence formula awarded 95/100 to a four-source run — the build added breadth caps (sources, families, domains) and a mixed-verdict cap.
 - The first live stream showed source cards before their final order existed — ids are now assigned at candidate selection and the final ledger is sorted by evidence weight without renumbering.
+- A stance was being inferred from keyword co-occurrence alone: "Einstein failed math" was supported by a quote that said he excelled at it, and a NASA streaming sentence supported a Moon-landing conspiracy claim. The classifier now requires the claim's head predicate to relate to one of its objects in the same sentence, demotes quoted or reported claims to neutral, and refutes a failure claim through an adversative success clause. The ledger quotes the sentence that carries the stance.
 - A fact-check article that quoted the claim being checked was voting `supports` — fact-check headlines can no longer turn a quoted claim into support; such sources are tagged `unclear`.
 - A COVID-claim run returned `Supported 85` with seven topically related passages and no comparison of deaths against prevented deaths — aggregate causal comparisons are now refused rather than scored, because passage overlap cannot establish population-level causation.
 - Confidence was high even when the deciding weight came from default-tier domains — the winning side is now capped at 66 when more than half of its weight is below 0.70 quality.

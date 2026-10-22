@@ -369,13 +369,13 @@
         },
         examine: {
           title: 'Read and examine',
-          body: 'Fetches each page, strips navigation and reference apparatus, splits the article into sections and passages, and scores every passage against the claim. A passage needs two distinct predicate concepts and any numeric anchor before it can take a side.',
+          body: 'Fetches each page, strips navigation and reference apparatus, and scores every passage against the claim. A stance requires the claim\'s head predicate to relate to one of its objects in the same sentence; quoted or reported claims are neutral, and an adversative success clause refutes a failure claim. The ledger quotes the sentence that carries the stance.',
           files: [
             ['HTML reader', 'server/engine/extract.js'],
             ['Passages + stance', 'server/engine/examine.js · examineSource'],
             ['Sentence reading', 'server/engine/examine.js · classifyPassage'],
           ],
-          change: 'Stance vocabulary lives in <code>REFUTE_PATTERNS</code> and <code>SUPPORT_PATTERNS</code> at the top of <code>examine.js</code>.',
+          change: 'Stance vocabulary lives in <code>REFUTE_PATTERNS</code> and <code>SUPPORT_PATTERNS</code>; the relation, quoting and success gates are in <code>classifyPassage</code> and its helpers.',
         },
         weigh: {
           title: 'Weigh the evidence',

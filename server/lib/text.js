@@ -41,19 +41,52 @@ const SUPERLATIVES = new Set([
   'oldest', 'youngest', 'first', 'last', 'biggest', 'heaviest', 'lightest', 'greatest', 'most', 'least',
 ]);
 
+const PREDICATE_GROUPS = {
+  fail: ['fail', 'failed', 'fails', 'failing', 'flunk', 'flunked', 'flunks', 'struggle', 'struggled', 'struggles'],
+  fake: ['fake', 'faked', 'fakes', 'faking', 'staged', 'fabricate', 'fabricated', 'falsify', 'falsified', 'hoax'],
+  improve: [
+    'improve', 'improves', 'improved', 'improving', 'help', 'helps', 'helped', 'boost', 'boosts', 'boosted',
+    'benefit', 'benefits', 'benefited', 'enhance', 'enhances', 'enhanced',
+  ],
+  visible: ['visible', 'visibility', 'see', 'seen', 'sees', 'sight', 'observe', 'observed', 'observable', 'view', 'eye', 'eyes', 'vision', 'eyesight'],
+  tall: ['tall', 'taller', 'tallest', 'height', 'heights', 'grow', 'grows', 'grew', 'grown', 'growth', 'expand', 'expanded', 'expansion'],
+  long: ['long', 'longer', 'longest', 'length', 'lengths'],
+  use: ['use', 'uses', 'used', 'using', 'utilize', 'utilise', 'consume', 'consumed', 'employ', 'employed'],
+  cause: ['cause', 'causes', 'caused', 'causing', 'lead', 'leads', 'led', 'trigger', 'triggers', 'triggered', 'result', 'results', 'resulted'],
+  prevent: ['prevent', 'prevents', 'prevented', 'preventing', 'avert', 'averts', 'averted', 'stop', 'stops', 'stopped'],
+  increase: ['increase', 'increases', 'increased', 'increasing', 'rise', 'rises', 'rose', 'rising'],
+  decrease: ['decrease', 'decreases', 'decreased', 'decreasing', 'fall', 'falls', 'fell', 'drop', 'drops', 'dropped'],
+  kill: ['kill', 'kills', 'killed', 'killing', 'deadly', 'fatal'],
+  harm: ['harm', 'harms', 'harmed', 'harmful', 'danger', 'dangerous', 'risk', 'risky'],
+  win: ['win', 'wins', 'won', 'winning'],
+  land: ['land', 'lands', 'landed', 'landing'],
+  build: ['build', 'builds', 'built', 'building', 'construct', 'constructed', 'construction'],
+  live: ['live', 'lives', 'lived', 'living', 'survive', 'survived', 'survives'],
+  work: ['work', 'works', 'worked', 'working', 'effective', 'effectiveness'],
+};
+
+const PREDICATE_INDEX = (() => {
+  const index = new Map();
+  for (const [concept, words] of Object.entries(PREDICATE_GROUPS)) {
+    for (const word of words) if (!index.has(word)) index.set(word, concept);
+  }
+  return index;
+})();
+
+const COPULAS = new Set(['is', 'are', 'was', 'were', 'be', 'been', 'being']);
+
 const SYNONYM_GROUPS = [
-  ['visible', 'visibility', 'see', 'seen', 'sight', 'observe', 'observable', 'view', 'eye'],
-  ['tall', 'taller', 'height', 'heights', 'grow', 'grows', 'grown', 'growth', 'expand', 'expands', 'expansion'],
+  PREDICATE_GROUPS.visible,
+  PREDICATE_GROUPS.tall,
   ['summer', 'hot', 'heat', 'warm', 'temperature', 'thermal', 'winter', 'cold', 'cool'],
   ['brain', 'brains', 'cerebral', 'mind', 'mental', 'cortex'],
-  ['use', 'uses', 'used', 'using', 'utilize', 'utilise', 'consume', 'employ'],
+  PREDICATE_GROUPS.use,
   ['percent', 'percentage', 'fraction', 'proportion', 'tenth'],
-  ['long', 'longer', 'longest', 'length'],
+  PREDICATE_GROUPS.long,
   ['large', 'larger', 'largest', 'big', 'bigger', 'biggest', 'size'],
   ['fast', 'faster', 'fastest', 'speed', 'quick', 'quickly'],
   ['old', 'older', 'oldest', 'age', 'ancient'],
   ['cost', 'costs', 'expensive', 'price', 'priced', 'pay', 'paid'],
-  ['danger', 'dangerous', 'risk', 'risky', 'safe', 'safety', 'harmful'],
   ['health', 'healthy', 'illness', 'disease', 'medical'],
   ['deep', 'deeper', 'deepest', 'depth'],
   ['high', 'higher', 'highest', 'altitude'],
@@ -65,15 +98,27 @@ const SYNONYM_GROUPS = [
   ['true', 'truth', 'real', 'actually', 'fact', 'factual', 'correct'],
   ['false', 'myth', 'debunk', 'debunked', 'misconception', 'untrue', 'incorrect', 'wrong'],
   ['find', 'found', 'discover', 'discovered', 'show', 'shows', 'shown', 'demonstrate'],
-  ['increase', 'increases', 'increased', 'rise', 'rises', 'rising'],
-  ['decrease', 'decreases', 'decreased', 'fall', 'falls', 'drop', 'drops'],
-  ['cause', 'causes', 'caused', 'lead', 'leads', 'trigger', 'triggers'],
-  ['live', 'lives', 'living', 'survive', 'survives'],
-  ['build', 'built', 'building', 'construct', 'constructed', 'construction'],
+  PREDICATE_GROUPS.increase,
+  PREDICATE_GROUPS.decrease,
+  PREDICATE_GROUPS.cause,
+  PREDICATE_GROUPS.prevent,
+  PREDICATE_GROUPS.kill,
+  PREDICATE_GROUPS.harm,
+  PREDICATE_GROUPS.fail,
+  PREDICATE_GROUPS.fake,
+  PREDICATE_GROUPS.improve,
+  PREDICATE_GROUPS.win,
+  PREDICATE_GROUPS.land,
+  PREDICATE_GROUPS.build,
+  PREDICATE_GROUPS.live,
+  PREDICATE_GROUPS.work,
   ['invent', 'invented', 'invention', 'create', 'created', 'creator'],
   ['first', 'earliest', 'initial'],
   ['prove', 'proof', 'proven', 'evidence', 'evidenced'],
   ['climate', 'weather', 'warming', 'warm'],
+  ['mathematics', 'math', 'maths'],
+  ['space', 'orbit', 'moon', 'lunar'],
+  ['school', 'schooling', 'education'],
 ];
 
 const CONCEPTS = (() => {
@@ -86,6 +131,19 @@ const CONCEPTS = (() => {
 
 export function conceptOf(token) {
   return CONCEPTS.get(token) ?? `w:${stemWord(token)}`;
+}
+
+/** Choose the claim's head predicate, preferring the word after a copula. */
+export function findMainPredicate(claim) {
+  const tokens = tokenize(claim);
+  const copulaIndex = tokens.findIndex((token) => COPULAS.has(token));
+  const start = copulaIndex >= 0 ? copulaIndex + 1 : 0;
+  const ordered = [...tokens.slice(start), ...tokens.slice(0, start)];
+  for (const token of ordered) {
+    const concept = PREDICATE_INDEX.get(token) ?? PREDICATE_INDEX.get(stemWord(token));
+    if (concept) return { concept, words: PREDICATE_GROUPS[concept] };
+  }
+  return null;
 }
 
 const EXPANSIONS = (() => {
@@ -229,6 +287,23 @@ export function analyzeClaim(rawClaim) {
   const predicateOrKeywords = predicate.length ? predicate : keywords;
   const predicateConcepts = [...new Set(predicateOrKeywords.map(conceptOf))];
 
+  const mainPredicate = findMainPredicate(claim);
+  const mainPredicateSet = mainPredicate
+    ? new Set([...mainPredicate.words, ...mainPredicate.words.map(stemWord)])
+    : new Set();
+  const objectTokens = mainPredicate
+    ? keywords.filter(
+        (keyword) => !mainPredicateSet.has(keyword) && !mainPredicateSet.has(stemWord(keyword)) && !entityTokens.has(keyword)
+      )
+    : [];
+  const objectSet = new Set();
+  for (const token of objectTokens) {
+    objectSet.add(token);
+    objectSet.add(stemWord(token));
+    const expanded = expandToken(token);
+    if (expanded) for (const synonym of expanded) objectSet.add(synonym);
+  }
+
   // Claim-specific anchors: "10", "percent", "longest". A source that does not
   // touch one of these is about the topic, not about the claim.
   const rawTokens = tokenize(claim);
@@ -256,6 +331,10 @@ export function analyzeClaim(rawClaim) {
     entityTokens: [...entityTokens],
     predicate: predicateOrKeywords,
     predicateConcepts,
+    mainPredicate,
+    mainPredicateSet: [...mainPredicateSet],
+    objectTokens,
+    objectSet: [...objectSet],
     predicateSet: [...new Set([...predicateOrKeywords, ...predicateOrKeywords.map(stemWord)])],
     anchors,
     anchorSet: [...new Set([...anchors, ...anchors.map(stemWord)])],

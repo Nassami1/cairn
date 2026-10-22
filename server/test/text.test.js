@@ -59,6 +59,24 @@ test('claim analysis separates subject, predicate, anchors and polarity', () => 
   assert.equal(hasNegation('This is not only wrong but late'), false);
 });
 
+test('head predicates and objects are extracted from common claims', () => {
+  const einstein = analyzeClaim('Albert Einstein failed mathematics in school.');
+  assert.equal(einstein.mainPredicate.concept, 'fail');
+  assert.deepEqual(einstein.objectTokens.sort(), ['mathematics', 'school']);
+
+  const moon = analyzeClaim('NASA faked the Moon landing in 1969.');
+  assert.equal(moon.mainPredicate.concept, 'fake');
+  assert.ok(moon.objectTokens.includes('landing'));
+  assert.ok(moon.objectTokens.includes('1969'));
+
+  const carrots = analyzeClaim('Eating carrots improves night vision.');
+  assert.equal(carrots.mainPredicate.concept, 'improve');
+  assert.ok(carrots.objectTokens.includes('vision'));
+
+  const passive = analyzeClaim('The Moon landing was faked by NASA.');
+  assert.equal(passive.mainPredicate.concept, 'fake');
+});
+
 test('aggregate causal comparisons are classified separately', () => {
   assert.equal(
     analyzeClaim('COVID-19 vaccines have caused more deaths than they prevented.').claimType,

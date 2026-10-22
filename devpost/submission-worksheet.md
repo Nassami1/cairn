@@ -7,7 +7,7 @@
 
 | Item | Status |
 |---|---|
-| Working proof of concept | Built and exercised end-to-end; `npm test` green (46 tests), live check returns a cited verdict. |
+| Working proof of concept | Built and exercised end-to-end; `npm test` green (55 tests), live check returns a cited verdict. |
 | `scope.md`, `prd.md`, `spec.md` | Present in `devpost/`, marked approved. |
 | Public repository | Not pushed yet — needs the entrant's GitHub account and explicit OK to publish. |
 | MIT license at repo root | Present. |
@@ -32,7 +32,7 @@
 - Retrieves from three independent families: Wikipedia (reference), Bing News RSS (news), OpenAlex
   (research). Optional Brave/Tavily web search when a key is present.
 - Reads the full pages, not headlines; drops pages it cannot read rather than guessing.
-- Tags each source Supports / Contradicts / Neutral, with the exact passage that decided it.
+- Tags each source Supports / Contradicts / Neutral, with the exact passage that decided it. A source that merely mentions the subject or quotes the claim is neutral, not support.
 - Returns Supported / Contradicted / Mixed / Not enough evidence, and withholds a verdict on aggregate causal comparisons.
 - Confidence 0–100 from four published factors (agreement 32%, independence 24%, directness 26%,
   source quality 18%), with caps for thin evidence, one-family evidence, and deciding weight that is

@@ -55,7 +55,8 @@ In:
 - One claim at a time, pasted as text (a statement, not a question).
 - Evidence retrieval from three keyless source families: Wikipedia (reference), Bing News RSS (news), OpenAlex (research), plus optional Brave/Tavily web search if the operator supplies a key.
 - Three to five readable sources; pages that cannot be read are dropped and reported.
-- Per-source stance (supports / contradicts / neutral) with the deciding quote.
+- Per-source stance (supports / contradicts / neutral) that requires the claim's head predicate to relate to one of its objects; quoted and reported claims count as neutral, not support.
+- The deciding quote is the sentence that carries the stance, not the start of the retrieved chunk.
 - A four-way verdict (Supported / Contradicted / Mixed / Not enough evidence) and a 0–100 confidence score with visible factors.
 - A scope guard that withholds a verdict on aggregate causal comparisons and keeps the sources as a reading list.
 - An extractive, citation-anchored summary with no invented facts.

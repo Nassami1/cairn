@@ -34,7 +34,7 @@ claim -> understand -> retrieve -> read and examine -> weigh -> compose -> dossi
 1. **Understand.** Normalise the claim, extract named entities, separate the predicate from the subject, detect negation, and collect anchors such as numbers, percentages, and superlatives that a source must mention to be on topic.
 2. **Retrieve.** Query the source families in parallel, deduplicate by URL and title, drop off-topic and disambiguation pages, and interleave families so one provider cannot crowd out an independent one.
 3. **Read.** Fetch pages through an SSRF-safe reader, strip navigation and reference apparatus, and split the article into passages. JavaScript-only pages are dropped, not guessed at.
-4. **Examine.** Score passages against the claim's concepts, require at least two distinct predicate concepts, and detect negation and explicit refutation cues near those concepts. The strongest passage becomes the quote.
+4. **Examine.** Identify the claim's head predicate and its objects, require the passage to relate them in the same sentence, and treat quoted or reported claims as neutral rather than support. Detect negation, explicit refutation cues, and adversative success clauses, then quote the sentence that actually carries the stance.
 5. **Weigh.** Weight each source by quality, relevance, and stance strength. The balance of support and contradiction produces the verdict; four factors produce the confidence.
 6. **Compose.** Write two or three sentences from the counted stances and the clearest decisive quote, with citation markers that map to the ledger.
 
@@ -115,12 +115,12 @@ The masthead badge reads **Keyless evidence engine** or **AI-assisted synthesis*
 ## Tests
 
 ```bash
-npm test          # 46 unit and integration tests, no network
+npm test          # 55 unit and integration tests, no network
 npm run test:live # one real claim end to end; needs the public web
 npm run typecheck # TypeScript checks for the client
 ```
 
-The suite covers claim analysis, predicate concepts, nested negation, anchor gating, causal-comparison detection, fact-check framing, verdict thresholds, confidence caps, summary validation, HTML extraction, the SSRF guard, URL canonicalisation, caching, rate limiting, and the semaphore.
+The suite covers claim analysis, head-predicate and object extraction, predicate concepts, nested negation, adversative success clauses, quoted and reporting frames, anchor gating, causal-comparison detection, fact-check framing, verdict thresholds, confidence caps, summary validation, HTML extraction, the SSRF guard, URL canonicalisation, caching, rate limiting, and the semaphore.
 
 ## Project layout
 
@@ -165,7 +165,7 @@ Some claims cannot be weighed honestly from passages. Aggregate causal compariso
 
 ## Limitations
 
-- **Stance detection is heuristic.** It reads negation, refutation cues, predicate concepts, and anchors. It can miss sarcasm, conditionals, and unusual phrasing. The quote is always shown so a reader can disagree with the tag.
+- **Stance detection is heuristic.** It reads a head predicate, its objects, negation, refutation cues, and anchors. A source that only mentions the subject, quotes the claim, or reports it inside a framing ("the story that...", "conspiracy theories claim...") is neutral, not support. It can still miss sarcasm, conditionals, and unusual phrasing, and the quote is always shown so a reader can disagree with the tag.
 - **Coverage is not completeness.** A dossier reports what readable sources said at the time it ran. Other sources may exist.
 - **Not a truth machine.** Supported means the readable sources support the claim, not that the claim is objectively true.
 - **Readability matters.** JavaScript-only and paywalled pages are dropped, and the run notes report how many.

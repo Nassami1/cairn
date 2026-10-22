@@ -18,6 +18,7 @@ import {
   expandToken,
   sectionsFromText,
   conceptOf,
+  splitSentences,
 } from '../lib/text.js';
 
 const REFUTE_PATTERNS = [
@@ -40,6 +41,8 @@ const REFUTE_PATTERNS = [
   /\bnever (?:been )?(?:visible|seen)\b/i,
   /\bnot visible\b/i,
   /\bcan(?:not|'t) be seen\b/i,
+  /\bfalse claim\b/i,
+  /\bno truth to\b/i,
 ];
 
 const SUPPORT_PATTERNS = [
@@ -54,6 +57,12 @@ const SUPPORT_PATTERNS = [
 ];
 
 const FACT_CHECK_TITLE = /\bfact[ -]?check(?:s|ed|ing)?\b/i;
+
+const SUCCESS_CUE =
+  /\b(excel(?:led|s|ent)?|distinction|distinct(?:ly)?|strong(?:ly)?|succeed(?:ed|s)?|success(?:ful)?|good at|gifted|proficient|mastered|aced|passed|top of|outstanding|brilliant)\b/i;
+
+const REPORTING_FRAME =
+  /\b(story|stories|claim|claims|claimed|myth|myths|mythology|rumou?r|rumors?|legend|belief|notion|idea|premise|film|movie|fiction|fictional|conspiracy theor(?:y|ies|ists?)|alleged|allegedly|reportedly|said|says|according to)\b/i;
 
 const BOILERPLATE_PATTERNS = [
   /\b(subscribe|newsletter|sign up|sign-up|click here|read more|advertisement|advertising|sponsored|affiliate|commission)\b/i,
@@ -131,7 +140,47 @@ function matchAny(text, patterns) {
   return patterns.some((pattern) => pattern.test(text));
 }
 
-function classifyPassage(passage, analysis, keywords, predicateSet, anchorSet) {
+function sentenceList(passage) {
+  const sentences = splitSentences(passage);
+  return sentences.length ? sentences : [passage];
+}
+
+function tokenInSet(set, token) {
+  return set.has(token) || set.has(stemWord(token));
+}
+
+/** The sentence that actually relates the claim's predicate to its object. */
+function relationSentenceFor(passage, mainSet, objectSet) {
+  if (!mainSet.size) return null;
+  for (const sentence of sentenceList(passage)) {
+    const tokens = tokenize(sentence);
+    if (!tokens.some((token) => tokenInSet(mainSet, token))) continue;
+    if (!objectSet.size) return sentence;
+    if (tokens.some((token) => tokenInSet(objectSet, token))) return sentence;
+  }
+  return null;
+}
+
+/** "Failed X, but excelled at X" is a refutation of a failure claim. */
+function successSentenceFor(passage, objectSet) {
+  if (!objectSet.size) return null;
+  for (const sentence of sentenceList(passage)) {
+    const clauses = sentence.split(/\b(?:but|however|yet|although|though|while)\b|;/i);
+    for (const clause of clauses) {
+      const tokens = tokenize(clause);
+      const namesObject = tokens.some((token) => tokenInSet(objectSet, token));
+      if (namesObject && SUCCESS_CUE.test(clause)) return sentence;
+    }
+  }
+  return null;
+}
+
+function isReportedOrQuoted(sentence) {
+  const trimmed = String(sentence ?? '').trim();
+  return /^["“]/.test(trimmed) || REPORTING_FRAME.test(trimmed);
+}
+
+function classifyPassage(passage, analysis, keywords, predicateSet, anchorSet, mainSet = new Set(), objectSet = new Set()) {
   const tokens = tokenize(passage);
   const hits = hitCount(tokens, keywords);
   const predicateHits = hitCount(tokens, predicateSet);
@@ -156,7 +205,17 @@ function classifyPassage(passage, analysis, keywords, predicateSet, anchorSet) {
   const claimedConcepts = analysis.predicateConcepts ?? [];
   const minConcepts = Math.min(2, claimedConcepts.length);
   const hasAnchor = anchorSet.size === 0 || anchorHits >= 1;
-  const onTopic = hasAnchor && conceptsHit.size >= minConcepts;
+
+  // A known head predicate raises the bar: the passage must relate that
+  // predicate to one of the claim's objects in the same sentence. This is what
+  // separates "NASA faked the Moon landing" from a passage that merely mentions
+  // NASA, the Moon, and 1969.
+  const relationSentence = relationSentenceFor(passage, mainSet, objectSet);
+  const successSentence = analysis.mainPredicate?.concept === 'fail' ? successSentenceFor(passage, objectSet) : null;
+  const targetSentence = successSentence ?? relationSentence;
+  const hasMainGate = mainSet.size > 0;
+  const onTopic = hasAnchor && (hasMainGate ? Boolean(targetSentence) : conceptsHit.size >= minConcepts);
+
   if (!onTopic || relevance < 0.12) {
     return {
       stance: 'neutral',
@@ -164,18 +223,24 @@ function classifyPassage(passage, analysis, keywords, predicateSet, anchorSet) {
       relevance,
       hits,
       predicateHits,
-      reason: 'mentions the subject without touching the claim',
+      reason: !hasAnchor
+        ? 'does not contain the claim’s specific date or quantity'
+        : hasMainGate && !targetSentence
+          ? 'mentions the subject without asserting the claim'
+          : 'mentions the subject without touching the claim',
     };
   }
 
   // "The wall cannot be seen … the myth has been debunked" expresses one
   // negative proposition, not two flips. A cue only supplies the negation when
   // the clause itself is not already negated.
-  const clausePolarity = negated || refuteCue ? 'negative' : 'positive';
+  let clausePolarity = negated || refuteCue ? 'negative' : 'positive';
+  if (successSentence) clausePolarity = 'negative';
   const claimPolarity = analysis.polarity;
-  const stance = clausePolarity === claimPolarity ? 'supports' : 'refutes';
+  let stance = clausePolarity === claimPolarity ? 'supports' : 'refutes';
 
   let strength = 0.32 + relevance * 0.4;
+  if (successSentence) strength = 0.68 + relevance * 0.25;
   if (refuteCue) strength += 0.22;
   if (supportCue) strength += 0.1;
   if (negated) strength += 0.08;
@@ -183,12 +248,45 @@ function classifyPassage(passage, analysis, keywords, predicateSet, anchorSet) {
   strength = Math.min(1, Math.round(strength * 1000) / 1000);
 
   let reason;
-  if (refuteCue) reason = 'calls the claim a myth, falsehood, or misconception';
+  if (successSentence) reason = "states that the claim’s failure predicate is not the case";
+  else if (refuteCue) reason = 'calls the claim a myth, falsehood, or misconception';
   else if (negated) reason = 'negates the claim next to its key terms';
   else if (supportCue) reason = 'affirms the claim with confirming language';
   else reason = 'states the claim’s content without contradiction';
 
-  return { stance, strength, relevance, hits, predicateHits, exactHits, reason, explicit: refuteCue };
+  // A quotation or a reporting frame ("the story that…", "conspiracy theories
+  // claim…") is not the source asserting the claim. It can still refute; it
+  // cannot supply support on its own.
+  if (stance === 'supports' && targetSentence && isReportedOrQuoted(targetSentence)) {
+    stance = 'neutral';
+    strength = 0;
+    reason = 'reports or quotes the claim without asserting it';
+  }
+
+  let evidenceSentence = null;
+  if (stance === 'refutes') {
+    evidenceSentence =
+      successSentence ??
+      sentenceList(passage).find((sentence) => matchAny(sentence, REFUTE_PATTERNS)) ??
+      sentenceList(passage).find((sentence) => hasNegation(sentence) && negationNear(tokenize(sentence), predicateSet)) ??
+      targetSentence;
+  } else if (stance === 'supports') {
+    evidenceSentence = targetSentence ?? relationSentence;
+  }
+
+  return {
+    stance,
+    strength,
+    relevance,
+    hits,
+    predicateHits,
+    exactHits,
+    evidenceSentence,
+    evidenceHits: evidenceSentence ? hitCount(tokenize(evidenceSentence), exactKeywords) : exactHits,
+    reason,
+    denial: negated,
+    explicit: Boolean(refuteCue || successSentence),
+  };
 }
 
 function passagesFor(candidate) {
@@ -212,7 +310,8 @@ function titlePrior(title, analysis) {
   const text = String(title ?? '').toLowerCase();
   if (!text) return null;
   const negated = analysis.polarity === 'negative';
-  const refutePattern = /\b(isn'?t|is not|aren'?t|can'?t|cannot|not visible|myth|debunk|false|no evidence|disproved|wrong)\b/;
+  const refutePattern =
+    /\b(isn'?t|is not|aren'?t|can'?t|cannot|not visible|myth|debunk|false|no evidence|disproved|wrong|didn'?t|doesn'?t|wasn'?t|weren'?t|hasn'?t|haven'?t|does not|did not|was not|were not|has not|have not)\b/;
   const supportPattern = /\b(can be seen|is visible|does|confirmed|true|grows taller|taller in summer|longest)\b/;
   if (/\bmore than\b/.test(text) && /\bonly\b/.test(analysis.claim.toLowerCase())) return 'refutes';
   if (refutePattern.test(text)) return negated ? 'supports' : 'refutes';
@@ -235,9 +334,11 @@ export function examineSource(candidate, analysis) {
   const keywords = keywordSet(analysis);
   const predicateSet = predicateSetFor(analysis);
   const anchorSet = anchorSetFor(analysis);
+  const mainSet = new Set(analysis.mainPredicateSet ?? []);
+  const objectSet = new Set(analysis.objectSet ?? []);
   const classified = top.map((passage) => ({
     ...passage,
-    ...classifyPassage(passage.text, analysis, keywords, predicateSet, anchorSet),
+    ...classifyPassage(passage.text, analysis, keywords, predicateSet, anchorSet, mainSet, objectSet),
   }));
 
   let supportWeight = classified
@@ -247,7 +348,15 @@ export function examineSource(candidate, analysis) {
   // merely near it, and outweighs a narrative mention.
   let refuteWeight = classified
     .filter((passage) => passage.stance === 'refutes')
-    .reduce((sum, passage) => sum + passage.strength * (0.5 + passage.relevance) * (passage.explicit ? 1.5 : 1), 0);
+    .reduce(
+      (sum, passage) =>
+        sum +
+        passage.strength *
+          (0.5 + passage.relevance) *
+          (passage.explicit ? 1.5 : 1) *
+          (passage.denial ? 1.2 : 1),
+      0
+    );
 
   const decisive = Math.max(supportWeight, refuteWeight);
   const total = supportWeight + refuteWeight;
@@ -286,10 +395,14 @@ export function examineSource(candidate, analysis) {
   // A fact-check headline is a framing, not a stance. If the body otherwise
   // looks like support, it is usually quoting the claim being checked; that is
   // not evidence for the claim. Refutations are left alone.
-  if (FACT_CHECK_TITLE.test(candidate.title) && stance === 'supports') {
-    stance = 'unclear';
-    stanceStrength = 0;
-    note = 'The headline frames this as a fact check; a quoted claim is not support.';
+  if (FACT_CHECK_TITLE.test(candidate.title)) {
+    if (stance === 'supports') {
+      stance = 'unclear';
+      stanceStrength = 0;
+    }
+    if (stance === 'unclear') {
+      note = 'The headline frames this as a fact check; a quoted claim is not support.';
+    }
   }
 
   return {
@@ -305,8 +418,8 @@ export function examineSource(candidate, analysis) {
     stanceStrength: Math.min(1, stanceStrength),
     relevance,
     note,
-    quote: best ? trimQuote(best.text, 220) : '',
-    quoteHits: best?.exactHits ?? 0,
+    quote: best ? trimQuote(best.evidenceSentence ?? best.text, 220) : '',
+    quoteHits: best?.evidenceHits ?? best?.exactHits ?? 0,
     passages: top.slice(0, 3).map((passage) => trimQuote(passage.text, 600)),
     hits: top[0]?.hits ?? 0,
   };
@@ -314,5 +427,13 @@ export function examineSource(candidate, analysis) {
 
 /** Exposed for tests: one sentence in, one reading out. */
 export function classifySentence(sentence, analysis) {
-  return classifyPassage(sentence, analysis, keywordSet(analysis), predicateSetFor(analysis), anchorSetFor(analysis));
+  return classifyPassage(
+    sentence,
+    analysis,
+    keywordSet(analysis),
+    predicateSetFor(analysis),
+    anchorSetFor(analysis),
+    new Set(analysis.mainPredicateSet ?? []),
+    new Set(analysis.objectSet ?? [])
+  );
 }

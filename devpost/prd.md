@@ -76,6 +76,7 @@ Established direction, carried from `scope.md > Inspiration & Identity`:
 - Stance is also encoded by a 2px left edge colour, so it survives greyscale.
 - Expanding a card reveals the full retrieved passage(s), the retrieval route ("Wikipedia search", "Bing News", "OpenAlex"), and a **Open original** link.
 - Sources are numbered when selected and keep that number in the ledger, so a citation marker and its card never disagree.
+- A source that only mentions the subject, quotes the claim, or reports it inside a framing ("the story that...", "conspiracy theories claim...") is tagged Neutral, not Support. Support requires the claim's head predicate to relate to one of its objects in the same sentence.
 - Clicking an answer citation scrolls to the card, sets a ring, and expands it; clicking again collapses.
 - A source that contributed nothing gets stance "Neutral" and is still shown — silence is evidence about the evidence.
 
